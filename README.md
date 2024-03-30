@@ -37,15 +37,8 @@ Após o download, certifique-se de colocar o arquivo no mesmo diretório do scri
 
 1. Clone este repositório ou baixe o script do aplicativo.
 2. Certifique-se de que todas as dependências estão instaladas e que o arquivo `bcim_2016_21_11_2018.gpkg` está no diretório correto.
-3. Execute o script através do terminal ou comando de linha com `python nome_do_script.py`.
+3. Execute o script através do terminal ou comando de linha com `Tkinter_Heatmap.py`.
 4. Uma interface gráfica será exibida. Clique em "Selecionar Arquivo" para escolher o arquivo Excel com os dados dos estudantes.
 5. Após selecionar o arquivo, escolha os filtros desejados nas opções disponíveis.
 6. Clique em "Aplicar Seleção" para filtrar os dados e visualizar o mapa com a distribuição geográfica.
 
-## Contribuições
-
-Contribuições são bem-vindas! Por favor, sinta-se à vontade para forkar o repositório, fazer suas alterações e enviar um pull request.
-
-## Licença
-
-[MIT](https://choosealicense.com/licenses/mit/)
