@@ -24,10 +24,14 @@ def preparar_dados_estudantis(caminho_arquivo):
 
     # Substitui os valores diferentes de "Sim" por "Não" na coluna "ensinoPublico?"
     dados_estudantis.loc[dados_estudantis['ensinoPublico?'] != 'Sim', 'ensinoPublico?'] = 'Não'
+    dados_estudantis.loc[dados_estudantis['AnoConclusãoSG'] == '', 'AnoConclusãoSG'] = '0'
 
     # Divide os valores da coluna "anoSemestreIngresso" em ano e semestre
     dados_estudantis['ano'] = dados_estudantis['anoSemestreIngresso'].astype(str).str[:4]
     dados_estudantis['semestre'] = dados_estudantis['anoSemestreIngresso'].astype(str).str[-1]
+
+
+    dados_estudantis['preGrad'] = dados_estudantis['ano'].astype(int) - dados_estudantis['AnoConclusãoSG'].astype(int)
 
     # Concatena o ano e o semestre formatados como uma data
     dados_estudantis['anoSemestreIngresso'] = dados_estudantis['semestre'] + '/' + dados_estudantis['ano']
@@ -62,9 +66,9 @@ def atualizar_interface_apos_selecao():
     # Remove o botão "Selecionar Arquivo"
     selecionar_arquivo_button.grid_remove()
     # Adiciona o botão "Aplicar Seleção"
-    aplicar_button.grid(row=7, columnspan=2, padx=5, pady=5)
+    aplicar_button.grid(row=8, columnspan=2, padx=5, pady=5)
     # Altera a mensagem
-    mensagem_inicial_label.config(text="A opção \"Total\" representa o conjunto de todos os\nvalores daquela categoria. Para o ano de ingresso,\ndeixe em branco se não houver limitação.")
+    mensagem_inicial_label.config(text="A opção \"Total\" representa o conjunto de todos os\nvalores daquela categoria. Para o ano de ingresso e\nintervalo pré-gaduação, deixe em branco se não \nhouver limitação.")
 
 # Função para converter números menores que 10 para texto
 def converter_para_texto(numero):
@@ -119,10 +123,22 @@ def conta_Caracteristicas():
     except ValueError:
         mensagem_inicial_label.config(text="Por favor, insira valores numéricos para os anos.")
         return
+    
+    try:
+        ano_min = int(ano_inicio_pre_universitario_entry.get()) if ano_inicio_pre_universitario_entry.get() else 0
+        ano_max = int(ano_fim_pre_universitario_entry.get()) if ano_fim_pre_universitario_entry.get() else 9999
+        
+        if ano_min > ano_max:
+            mensagem_inicial_label.config(text="O valor de intervalo mínimo deve ser menor ou \nigual ao máximo.")
+            return
+    except ValueError:
+        mensagem_inicial_label.config(text="Por favor, insira valores numéricos para o intervalo.")
+        return
 
     # Filtrar o DataFrame com base nas características desejadas
     df_filtrado = dados_estudantis
     df_filtrado = df_filtrado[df_filtrado['ano'].astype(int).between(ano_inicio, ano_fim)]
+    df_filtrado = df_filtrado[df_filtrado['preGrad'].between(ano_min, ano_max)]
     for coluna, valor in caracteristicas.items():
         if valor == 'Total':
             continue
@@ -332,7 +348,7 @@ frame_intervalo_anos = ttk.Frame(frame_dropdowns)
 frame_intervalo_anos.grid(row=6, column=0, columnspan=2, padx=5, pady=5, sticky="w")  # Usando sticky para alinhar à esquerda
 
 # Label explicativo movido para dentro de frame_intervalo_anos
-label_explicativo = ttk.Label(frame_intervalo_anos, text="Ano de Ingresso:      ")
+label_explicativo = ttk.Label(frame_intervalo_anos, text="Ano de Ingresso:              ")
 label_explicativo.grid(row=0, column=0, padx=(0, 10))  # Adiciona espaço à direita do label
 
 # Agora o frame_anos é colocado dentro de frame_intervalo_anos ao lado do label
@@ -349,13 +365,34 @@ label_hifen.grid(row=0, column=1)
 ano_fim_entry = ttk.Entry(frame_anos, width=6)
 ano_fim_entry.grid(row=0, column=2, padx=(2, 0))  # Pequeno espaço à esquerda
 
+# Criando um novo frame para conter o label e o frame de intervalo pré-universitário
+frame_intervalo_pre_universitario = ttk.Frame(frame_dropdowns)
+frame_intervalo_pre_universitario.grid(row=7, column=0, columnspan=2, padx=5, pady=5, sticky="w")  # Alinha à esquerda
+
+# Label explicativo para o intervalo pré-universitário
+label_explicativo_pre_universitario = ttk.Label(frame_intervalo_pre_universitario, text="Intervalo pré-graduação:")
+label_explicativo_pre_universitario.grid(row=0, column=0, padx=(0, 10))  # Espaço à direita do label
+
+# Frame para os campos de entrada do intervalo pré-universitário
+frame_anos_pre_universitario = ttk.Frame(frame_intervalo_pre_universitario)
+frame_anos_pre_universitario.grid(row=0, column=1)
+
+# Caixas de entrada para o intervalo pré-universitário
+ano_inicio_pre_universitario_entry = ttk.Entry(frame_anos_pre_universitario, width=6)
+ano_inicio_pre_universitario_entry.grid(row=0, column=0, padx=(0, 2))  # Pequeno espaço à direita
+
+label_hifen_pre_universitario = ttk.Label(frame_anos_pre_universitario, text="-")
+label_hifen_pre_universitario.grid(row=0, column=1)
+
+ano_fim_pre_universitario_entry = ttk.Entry(frame_anos_pre_universitario, width=6)
+ano_fim_pre_universitario_entry.grid(row=0, column=2, padx=(2, 0))  # Pequeno espaço à esquerda
 
 caminho_arquivo = ""
 fullscreen_ativado = False  # Variável para rastrear o estado do fullscreen
 
 # Cria e posiciona o botão "Selecionar Arquivo"
 selecionar_arquivo_button = ttk.Button(frame_dropdowns, text="Selecionar Arquivo", command=selecionar_arquivo)
-selecionar_arquivo_button.grid(row=7, columnspan=2, padx=5, pady=5)
+selecionar_arquivo_button.grid(row=8, columnspan=2, padx=5, pady=5)
 
 # Cria o botão "Aplicar Seleção" mas não o adiciona à interface ainda
 aplicar_button = ttk.Button(frame_dropdowns, text="Aplicar Seleção", command=conta_Caracteristicas)
