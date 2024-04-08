@@ -24,6 +24,8 @@ def preparar_dados_estudantis(caminho_arquivo):
 
     # Substitui os valores diferentes de "Sim" por "Não" na coluna "ensinoPublico?"
     dados_estudantis.loc[dados_estudantis['ensinoPublico?'] != 'Sim', 'ensinoPublico?'] = 'Não'
+    dados_estudantis.loc[dados_estudantis['ensinoPublico?'] == '', 'ensinoPublico?'] = 'não declarada'
+    dados_estudantis.loc[dados_estudantis['UFSG'] == '', 'UFSG'] = dados_estudantis.loc[dados_estudantis['Naturalidade'] != '', 'Naturalidade'].astype(str).str[:2]
     dados_estudantis.loc[dados_estudantis['AnoConclusãoSG'] == '', 'AnoConclusãoSG'] = '0'
 
     # Divide os valores da coluna "anoSemestreIngresso" em ano e semestre
@@ -35,6 +37,11 @@ def preparar_dados_estudantis(caminho_arquivo):
 
     # Concatena o ano e o semestre formatados como uma data
     dados_estudantis['anoSemestreIngresso'] = dados_estudantis['semestre'] + '/' + dados_estudantis['ano']
+
+    # Ajustar as colunas "IAP-indiceAproveitamentoAprovacoes" e "IAA-indiceAproveitamentoAcumulado"
+    colunas_para_ajustar = ['IAP-indiceAproveitamentoAprovacoes', 'IAA-indiceAproveitamentoAcumulado']
+    for coluna in colunas_para_ajustar:
+        dados_estudantis[coluna] = (dados_estudantis[coluna] / 1000).round(2)
     
 
     return dados_estudantis
@@ -48,7 +55,13 @@ def preparar_valores_dropdown():
         'Sexo': sexo_dropdown,
         'nomeCurso': nomeCurso_dropdown,
         'ensinoPublico?': ensinoPublico_dropdown,
+        'IAA-indiceAproveitamentoAcumulado': IAA_dropdown,
+        'IAP-indiceAproveitamentoAprovacoes': IAP_dropdown,
     }
+
+    # Definindo os intervalos para IAA e IAP
+    intervalos = ['< 1', '1 - 2.5', '2.5 - 5', '5 - 6', '6 - 7.5', '7.5 - 9', '> 9']
+    intervalos_IAP = ['< 1', '6 - 7.5', '7.5 - 9', '> 9']
     
     for coluna, dropdown in colunas_interesse.items():
         # Obtem valores únicos e remove NaN
@@ -57,18 +70,24 @@ def preparar_valores_dropdown():
         # Converte valores para string e os ordena, removendo strings vazias ou espaços em branco
         valores_unicos = [str(valor).strip() for valor in valores_unicos if str(valor).strip()]
 
-        # Adiciona 'Total' no início da lista e atribui ao dropdown
-        valores_unicos = ['Total'] + sorted(valores_unicos)
+        # Adiciona 'Todos' no início da lista e atribui ao dropdown
+        valores_unicos = ['Todos'] + sorted(valores_unicos)
         dropdown['values'] = valores_unicos
         dropdown.current(0)
+    
+    # Atualizando os dropdowns de IAA e IAP com os intervalos fixos
+    IAA_dropdown['values'] = ['Todos'] + intervalos
+    IAA_dropdown.current(0)
+    IAP_dropdown['values'] = ['Todos'] + intervalos_IAP
+    IAP_dropdown.current(0)
 
 def atualizar_interface_apos_selecao():
     # Remove o botão "Selecionar Arquivo"
     selecionar_arquivo_button.grid_remove()
     # Adiciona o botão "Aplicar Seleção"
-    aplicar_button.grid(row=8, columnspan=2, padx=5, pady=5)
+    aplicar_button.grid(row=9, columnspan=2, padx=5, pady=5)
     # Altera a mensagem
-    mensagem_inicial_label.config(text="A opção \"Total\" representa o conjunto de todos os\nvalores daquela categoria. Para o ano de ingresso e\nintervalo pré-gaduação, deixe em branco se não \nhouver limitação.")
+    mensagem_inicial_label.config(text="A opção \"Todos\" representa o conjunto de todos os\nvalores daquela categoria. Para o ano de ingresso e\nintervalo pré-gaduação, deixe em branco se não \nhouver limitação.")
 
 # Função para converter números menores que 10 para texto
 def converter_para_texto(numero):
@@ -85,6 +104,25 @@ def converter_para_texto(numero):
         9: 'Nove'
     }
     return numeros_textuais.get(numero, str(numero))
+
+def filtrar_por_intervalo(df, coluna, intervalo):
+    intervalos = {
+        '< 1': (None, 1),
+        '1 - 2.5': (1, 2.5),
+        '2.5 - 5': (2.5, 5),
+        '5 - 6': (5, 6),
+        '6 - 7.5': (6, 7.5),
+        '7.5 - 9': (7.5, 9),
+        '> 9': (9, None)
+    }
+    
+    min_val, max_val = intervalos[intervalo]
+    if min_val is None:
+        return df[df[coluna] < max_val]
+    elif max_val is None:
+        return df[df[coluna] >= min_val]
+    else:
+        return df[(df[coluna] >= min_val) & (df[coluna] < max_val)]
 
 def conta_Caracteristicas():
     global fullscreen_ativado   
@@ -113,6 +151,13 @@ def conta_Caracteristicas():
         'ensinoPublico?': ensinoPublico_var.get()
     }
 
+    # Filtrar baseado nos intervalos selecionados para IAA e IAP, se aplicável
+    if IAA_var.get() != 'Todos':
+        dados_estudantis = filtrar_por_intervalo(dados_estudantis, 'IAA-indiceAproveitamentoAcumulado', IAA_var.get())
+
+    if IAP_var.get() != 'Todos':
+        dados_estudantis = filtrar_por_intervalo(dados_estudantis, 'IAP-indiceAproveitamentoAprovacoes', IAP_var.get())
+
     try:
         ano_inicio = int(ano_inicio_entry.get()) if ano_inicio_entry.get() else 0
         ano_fim = int(ano_fim_entry.get()) if ano_fim_entry.get() else 9999
@@ -140,7 +185,7 @@ def conta_Caracteristicas():
     df_filtrado = df_filtrado[df_filtrado['ano'].astype(int).between(ano_inicio, ano_fim)]
     df_filtrado = df_filtrado[df_filtrado['preGrad'].between(ano_min, ano_max)]
     for coluna, valor in caracteristicas.items():
-        if valor == 'Total':
+        if valor == 'Todos':
             continue
         else:
             df_filtrado = df_filtrado[df_filtrado[coluna] == valor]
@@ -152,7 +197,7 @@ def conta_Caracteristicas():
         num_ocorrencias_por_estado[estado] = len(df_estado)
 
     # Criar DataFrame com os dados para a nova planilha
-    df_nova_planilha = pd.DataFrame(num_ocorrencias_por_estado.items(), columns=['sigla', 'Total'])
+    df_nova_planilha = pd.DataFrame(num_ocorrencias_por_estado.items(), columns=['sigla', 'Todos'])
 
     # Salvar DataFrame como uma nova planilha do Excel
     df_nova_planilha.to_excel('DadosCaracteristicasPorEstado.xlsx', index=False)
@@ -171,7 +216,7 @@ def conta_Caracteristicas():
     ax = fig.add_subplot(111)
 
     # Plotar heatmap
-    misto.plot(column='Total',
+    misto.plot(column='Todos',
                cmap='Reds',
                figsize=(16, 12),
                legend=True,
@@ -180,13 +225,13 @@ def conta_Caracteristicas():
 
     # Adicionar rótulos com o número de pessoas em cada estado
     # for idx, row in misto.iterrows():
-    #     ax.text(row.geometry.centroid.x, row.geometry.centroid.y, f"{row['sigla']}-{converter_para_texto(row['Total']) if row['Total'] < 10 else row['Total']}", fontsize=9, ha='center', color='blue')
+    #     ax.text(row.geometry.centroid.x, row.geometry.centroid.y, f"{row['sigla']}-{converter_para_texto(row['Todos']) if row['Todos'] < 10 else row['Todos']}", fontsize=9, ha='center', color='blue')
     for idx, row in misto.iterrows():
         x = row.geometry.centroid.x
         y = row.geometry.centroid.y
-        total = row['Total']
-        #text = f"{row['sigla']} - {converter_para_texto(total) if total < 10 else total}"
-        text = f"{total}"
+        Todos = row['Todos']
+        #text = f"{row['sigla']} - {converter_para_texto(Todos) if Todos < 10 else Todos}"
+        text = f"{Todos}"
         fontsize = 9
         color = 'blue'
         
@@ -225,13 +270,13 @@ def conta_Caracteristicas():
                 y += -0.4
 
             # Desenhar a linha e posicionar o texto
-            ax.annotate(text=f"{total}",
+            ax.annotate(text=f"{Todos}",
                         xy=(x, y), xycoords='data',
                         xytext=(x + dx, y + dy), textcoords='data',
                         arrowprops=dict(arrowstyle="->", connectionstyle="arc3"),
                         ha='left', fontsize=9, color='blue')
             
-            # ax.text(x + dx, y + dy, str(total), fontsize=9, ha='left', color='blue')
+            # ax.text(x + dx, y + dy, str(Todos), fontsize=9, ha='left', color='blue')
         elif row['sigla'] == "DF":
              ha = 'center' 
              y += +0.4
@@ -242,7 +287,7 @@ def conta_Caracteristicas():
              ax.text(x, y, text, fontsize=fontsize, ha=ha, color=color)
         else:
             # Para os demais estados, apenas colocar o texto sem linha
-            ax.text(x, y, total, fontsize=9, ha='center', color='blue')
+            ax.text(x, y, Todos, fontsize=9, ha='center', color='blue')
 
 
         # Ajustar a posição do texto para não ultrapassar as bordas
@@ -284,6 +329,22 @@ def conta_Caracteristicas():
         #     ha = 'center'
 
         # ax.text(x, y, text, fontsize=fontsize, ha=ha, color=color)
+
+    # Mostrar o número total de casos
+    Todos_de_casos = df_nova_planilha['Todos'].sum()
+
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+
+    posicao_x = xlim[1]
+    posicao_y = ylim[0]
+
+    texto_legenda = f"Total de casos: {Todos_de_casos}"
+    ax.text(posicao_x, posicao_y, texto_legenda, ha='right', va='bottom', fontsize=10, color='black')
+
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    
     # Limpar frame_plot antes de plotar
     for widget in frame_plot.winfo_children():
         widget.destroy()
@@ -296,7 +357,7 @@ def conta_Caracteristicas():
 
 # Inicializar a interface gráfica
 root = tk.Tk()
-root.title("Selecione as Características")
+root.title("EduMap")
 
 # Tratamento de evento para fechar a janela
 def on_close():
@@ -317,35 +378,49 @@ racaCor_var = tk.StringVar(frame_dropdowns)
 sexo_var = tk.StringVar(frame_dropdowns)
 nomeCurso_var = tk.StringVar(frame_dropdowns)
 ensinoPublico_var = tk.StringVar(frame_dropdowns)
+IAA_var = tk.StringVar(frame_dropdowns)
+IAP_var = tk.StringVar(frame_dropdowns)
 
 # Labels e Dropdowns
 racaCor_label = ttk.Label(frame_dropdowns, text="Raça/Cor:")
 racaCor_label.grid(row=1, column=0, padx=5, pady=5)
-racaCor_dropdown = ttk.Combobox(frame_dropdowns, textvariable=racaCor_var, values=['Total'])
+racaCor_dropdown = ttk.Combobox(frame_dropdowns, textvariable=racaCor_var, values=['Todos'])
 racaCor_dropdown.grid(row=1, column=1, padx=5, pady=5)
 racaCor_dropdown.current(0)
 
 sexo_label = ttk.Label(frame_dropdowns, text="Sexo:")
 sexo_label.grid(row=2, column=0, padx=5, pady=5)
-sexo_dropdown = ttk.Combobox(frame_dropdowns, textvariable=sexo_var, values=['Total'])
+sexo_dropdown = ttk.Combobox(frame_dropdowns, textvariable=sexo_var, values=['Todos'])
 sexo_dropdown.grid(row=2, column=1, padx=5, pady=5)
 sexo_dropdown.current(0)
 
 nomeCurso_label = ttk.Label(frame_dropdowns, text="Nome do Curso:")
 nomeCurso_label.grid(row=3, column=0, padx=5, pady=5)
-nomeCurso_dropdown = ttk.Combobox(frame_dropdowns, textvariable=nomeCurso_var, values=['Total'])
+nomeCurso_dropdown = ttk.Combobox(frame_dropdowns, textvariable=nomeCurso_var, values=['Todos'])
 nomeCurso_dropdown.grid(row=3, column=1, padx=5, pady=5)
 nomeCurso_dropdown.current(0)
 
 ensinoPublico_label = ttk.Label(frame_dropdowns, text="Ensino Público?")
 ensinoPublico_label.grid(row=4, column=0, padx=5, pady=5)
-ensinoPublico_dropdown = ttk.Combobox(frame_dropdowns, textvariable=ensinoPublico_var, values=['Total'])
+ensinoPublico_dropdown = ttk.Combobox(frame_dropdowns, textvariable=ensinoPublico_var, values=['Todos'])
 ensinoPublico_dropdown.grid(row=4, column=1, padx=5, pady=5)
 ensinoPublico_dropdown.current(0)
 
+IAA_label = ttk.Label(frame_dropdowns, text = "IAA")
+IAA_label.grid(row = 5, column = 0, padx = 5, pady = 5)
+IAA_dropdown = ttk.Combobox(frame_dropdowns, textvariable=IAA_var, values=['Todos'])
+IAA_dropdown.grid(row = 5, column=1, padx=5, pady=5)
+IAA_dropdown.current(0)
+
+IAP_label = ttk.Label(frame_dropdowns, text = "IAP")
+IAP_label.grid(row = 6, column = 0, padx = 5, pady = 5)
+IAP_dropdown = ttk.Combobox(frame_dropdowns, textvariable=IAP_var, values=['Todos'])
+IAP_dropdown.grid(row=6, column=1, padx=5, pady=5)
+IAP_dropdown.current(0)
+
 # Criando um novo frame para conter o label e o frame de anos
 frame_intervalo_anos = ttk.Frame(frame_dropdowns)
-frame_intervalo_anos.grid(row=6, column=0, columnspan=2, padx=5, pady=5, sticky="w")  # Usando sticky para alinhar à esquerda
+frame_intervalo_anos.grid(row=7, column=0, columnspan=2, padx=5, pady=5, sticky="w")  # Usando sticky para alinhar à esquerda
 
 # Label explicativo movido para dentro de frame_intervalo_anos
 label_explicativo = ttk.Label(frame_intervalo_anos, text="Ano de Ingresso:              ")
@@ -367,7 +442,7 @@ ano_fim_entry.grid(row=0, column=2, padx=(2, 0))  # Pequeno espaço à esquerda
 
 # Criando um novo frame para conter o label e o frame de intervalo pré-universitário
 frame_intervalo_pre_universitario = ttk.Frame(frame_dropdowns)
-frame_intervalo_pre_universitario.grid(row=7, column=0, columnspan=2, padx=5, pady=5, sticky="w")  # Alinha à esquerda
+frame_intervalo_pre_universitario.grid(row=8, column=0, columnspan=2, padx=5, pady=5, sticky="w")  # Alinha à esquerda
 
 # Label explicativo para o intervalo pré-universitário
 label_explicativo_pre_universitario = ttk.Label(frame_intervalo_pre_universitario, text="Intervalo pré-graduação:")
@@ -392,7 +467,7 @@ fullscreen_ativado = False  # Variável para rastrear o estado do fullscreen
 
 # Cria e posiciona o botão "Selecionar Arquivo"
 selecionar_arquivo_button = ttk.Button(frame_dropdowns, text="Selecionar Arquivo", command=selecionar_arquivo)
-selecionar_arquivo_button.grid(row=8, columnspan=2, padx=5, pady=5)
+selecionar_arquivo_button.grid(row=9, columnspan=2, padx=5, pady=5)
 
 # Cria o botão "Aplicar Seleção" mas não o adiciona à interface ainda
 aplicar_button = ttk.Button(frame_dropdowns, text="Aplicar Seleção", command=conta_Caracteristicas)
