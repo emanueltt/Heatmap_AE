@@ -9,20 +9,20 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # Função chamada para selecionar o arquivo
 def selecionar_arquivo():
-    global caminho_arquivo  # Declara que vai utilizar a variável global
+    global caminho_arquivo 
     caminho_arquivo = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx;*.xls")])
-    if caminho_arquivo:  # Se um arquivo foi selecionado
+    if caminho_arquivo:
         preparar_valores_dropdown()
         atualizar_interface_apos_selecao()
 
 def preparar_dados_estudantis(caminho_arquivo):
-    # Lendo os dados do arquivo Excel e definindo a linha 1 como cabeçalho
+    # Lendo os dados e definindo a linha 1 como cabeçalho
     dados_estudantis = pd.read_excel(caminho_arquivo, header=1)
 
     # Removendo espaços extras para todas as colunas de texto
     dados_estudantis = dados_estudantis.applymap(lambda x: x.strip() if isinstance(x, str) else x)
 
-    # Substitui os valores diferentes de "Sim" por "Não" na coluna "ensinoPublico?"
+    # Manipulação dos dados para melhor análise
     dados_estudantis.loc[dados_estudantis['ensinoPublico?'] != 'Sim', 'ensinoPublico?'] = 'Não'
     dados_estudantis.loc[dados_estudantis['ensinoPublico?'] == '', 'ensinoPublico?'] = 'não declarada'
     dados_estudantis.loc[dados_estudantis['UFSG'] == '', 'UFSG'] = dados_estudantis.loc[dados_estudantis['Naturalidade'] != '', 'Naturalidade'].astype(str).str[:2]
@@ -32,13 +32,12 @@ def preparar_dados_estudantis(caminho_arquivo):
     dados_estudantis['ano'] = dados_estudantis['anoSemestreIngresso'].astype(str).str[:4]
     dados_estudantis['semestre'] = dados_estudantis['anoSemestreIngresso'].astype(str).str[-1]
 
-
     dados_estudantis['preGrad'] = dados_estudantis['ano'].astype(int) - dados_estudantis['AnoConclusãoSG'].astype(int)
 
     # Concatena o ano e o semestre formatados como uma data
     dados_estudantis['anoSemestreIngresso'] = dados_estudantis['semestre'] + '/' + dados_estudantis['ano']
 
-    # Ajustar as colunas "IAP-indiceAproveitamentoAprovacoes" e "IAA-indiceAproveitamentoAcumulado"
+    # Ajustar as colunas de IAP e IAA (0-10)
     colunas_para_ajustar = ['IAP-indiceAproveitamentoAprovacoes', 'IAA-indiceAproveitamentoAcumulado']
     for coluna in colunas_para_ajustar:
         dados_estudantis[coluna] = (dados_estudantis[coluna] / 1000).round(2)
@@ -49,7 +48,6 @@ def preparar_dados_estudantis(caminho_arquivo):
 def preparar_valores_dropdown():
     df_temp = preparar_dados_estudantis(caminho_arquivo)
     
-    # Para cada coluna de interesse, obter os valores únicos
     colunas_interesse = {
         'racaCor': racaCor_dropdown,
         'Sexo': sexo_dropdown,
@@ -127,16 +125,15 @@ def filtrar_por_intervalo(df, coluna, intervalo):
 def conta_Caracteristicas():
     global fullscreen_ativado   
 
-    # Verifica se um caminho foi fornecido
     if not caminho_arquivo: 
         print("Nenhum arquivo selecionado.")
         return
     
     if not fullscreen_ativado:  # Se for a primeira vez, ativa o modo fullscreen
         root.state('zoomed')
-        fullscreen_ativado = True  # Atualiza a variável para não entrar mais aqui
+        fullscreen_ativado = True 
 
-    # Lendo os dados do arquivo Excel e definindo a linha 1 como cabeçalho
+
     dados_estudantis = preparar_dados_estudantis(caminho_arquivo)
 
     # Lista de estados
@@ -211,7 +208,6 @@ def conta_Caracteristicas():
     # Mesclar mapa com dados
     misto = mapa_Brasil.merge(dados, on='sigla', how='left')
 
-    # Criar nova figura e subplot
     fig = Figure(figsize=(16, 12))
     ax = fig.add_subplot(111)
 
@@ -241,7 +237,7 @@ def conta_Caracteristicas():
         if sigla in ["RN", "PB", "PE", "AL", "SE", "ES", "RJ"]:
             # Calcular a direção e comprimento da linha
             if sigla == "RN":
-                dx, dy = 3.0, 0.3  # Exemplo de ajuste
+                dx, dy = 3.0, 0.3
                 x += 1
                 y += -0
             elif sigla == "PB":
@@ -330,7 +326,6 @@ def conta_Caracteristicas():
 
         # ax.text(x, y, text, fontsize=fontsize, ha=ha, color=color)
 
-    # Mostrar o número total de casos
     Todos_de_casos = df_nova_planilha['Todos'].sum()
 
     xlim = ax.get_xlim()
@@ -369,7 +364,7 @@ root.protocol("WM_DELETE_WINDOW", on_close)
 frame_dropdowns = ttk.Frame(root)
 frame_dropdowns.pack(side=tk.LEFT, padx=10, pady=10)
 
-# Mensagem inicial "Oi!" antes da seleção do arquivo
+# Mensagem inicial antes da seleção do arquivo
 mensagem_inicial_label = ttk.Label(frame_dropdowns, text="Selecione um arquivo. As opções serão atualizadas \napós um ser selecionado.")
 mensagem_inicial_label.grid(row=0, columnspan=2, padx=5, pady=5)
 
