@@ -44,6 +44,8 @@ Após o download, certifique-se de colocar o arquivo no mesmo diretório do scri
 
 O código está atualmente configurado para funcionar com uma planilha específica, como mostrado na imagem de exemplo. Se você deseja usar este aplicativo com outras planilhas, será necessário fazer algumas adaptações no código.
 
+![Exemplo de Dados](images/exemplo_dados.png)
+
 Aqui estão os passos gerais que você deve seguir:
 
 1. **Entenda os Dados**: Verifique a estrutura da sua planilha. Anote os nomes das colunas que você deseja analisar e qualquer especificidade no formato dos dados (por exemplo, datas em um formato diferente, nomes de colunas em outro idioma, etc.).
