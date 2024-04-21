@@ -42,7 +42,7 @@ Após o download, certifique-se de colocar o arquivo no mesmo diretório do scri
 6. Clique em "Aplicar Seleção" para filtrar os dados e visualizar o mapa com a distribuição geográfica.
 ## Adaptando o Código para Outras Planilhas
 
-O código está atualmente configurado para funcionar com uma planilha específica, como mostrado na imagem de exemplo. Se você deseja usar este aplicativo com outras planilhas, será necessário fazer algumas adaptações no código.
+O código está atualmente configurado para funcionar com uma planilha em formato específico, como mostrado na imagem de exemplo. Se você deseja usar este aplicativo com outras planilhas, será necessário fazer algumas adaptações no código.
 
 ![Exemplo de Dados](images/exemplo_dados.png)
 
