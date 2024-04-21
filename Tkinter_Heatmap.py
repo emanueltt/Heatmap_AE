@@ -136,10 +136,18 @@ def conta_Caracteristicas():
 
     dados_estudantis = preparar_dados_estudantis(caminho_arquivo)
 
-    # Lista de estados
+    # Lista de estados e regioes
     estados = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
                "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN",
                "RS", "RO", "RR", "SC", "SP", "SE", "TO"]
+    
+    regioes = {
+    'Norte': ['AC', 'AP', 'AM', 'PA', 'RO', 'RR', 'TO'],
+    'Nordeste': ['AL', 'BA', 'CE', 'MA', 'PB', 'PE', 'PI', 'RN', 'SE'],
+    'Centro-Oeste': ['GO', 'MT', 'MS', 'DF'],
+    'Sudeste': ['ES', 'MG', 'RJ', 'SP'],
+    'Sul': ['PR', 'RS', 'SC']
+    }
 
     caracteristicas = {
         'racaCor': racaCor_var.get(),
@@ -186,6 +194,11 @@ def conta_Caracteristicas():
             continue
         else:
             df_filtrado = df_filtrado[df_filtrado[coluna] == valor]
+
+    # Contar estudantes de Joinville e de outros municípios de SC 
+    df_SC = df_filtrado[df_filtrado['UFSG'] == 'SC']
+    estudantes_Joinville = len(df_SC[df_SC['MunicipioSG'] == 'Joinville'])
+    estudantes_outros_SC = len(df_SC[df_SC['MunicipioSG'] != 'Joinville'])
 
     # Contar o número de ocorrências para cada estado
     num_ocorrencias_por_estado = {}
@@ -281,52 +294,35 @@ def conta_Caracteristicas():
              ha = 'left'
              x += 0.5 
              ax.text(x, y, text, fontsize=fontsize, ha=ha, color=color)
+        elif row['sigla'] == "SC":
+             dx, dy, dy2 = 3, 0.5, -0.5
+             x += 1.35
+             y += -0.4
+             ax.text(x - 1.35, y + 0.4, Todos, fontsize=9, ha='center', color='blue')
+             ax.annotate(text=f"Joinville: {estudantes_Joinville}",
+                        xy=(x, y), xycoords='data',
+                        xytext=(x + dx, y + dy), textcoords='data',
+                        arrowprops=dict(arrowstyle="->", connectionstyle="arc3"),
+                        ha='left', fontsize=9, color='blue')
+             ax.annotate(text=f"Outros municípios: {estudantes_outros_SC}",
+                        xy=(x, y), xycoords='data',
+                        xytext=(x + dx, y + dy2), textcoords='data',
+                        arrowprops=dict(arrowstyle="->", connectionstyle="arc3"),
+                        ha='left', fontsize=9, color='blue')
         else:
             # Para os demais estados, apenas colocar o texto sem linha
             ax.text(x, y, Todos, fontsize=9, ha='center', color='blue')
+    
 
+    Total_de_casos = df_nova_planilha['Todos'].sum()
 
-        # Ajustar a posição do texto para não ultrapassar as bordas
-        # if row['sigla'] == "AL":
-        #     ha = 'left'
-        #     x += 0.1  # Ajuste para a direita
-        #     y += -0.4
-        # elif row['sigla'] == "ES":
-        #     ha = 'left'
-        #     x += -0.1
-        #     y += -0.1
-        # elif row['sigla'] == "RJ":
-        #     ha = 'left'
-        #     x += 0.2
-        #     y += -0.1
-        # elif row['sigla'] == "RN":
-        #     ha = 'left'
-        #     x += -0.1  
-        #     y += -0.1
-        # elif row['sigla'] == "PB":
-        #     ha = 'left'
-        #     x += 0.5  
-        #     y += -0.1
-        # elif row['sigla'] == "SE":
-        #     ha = 'left'
-        #     x += -0.1  
-        #     y += -0.1
-        # elif row['sigla'] == "DF":
-        #     ha = 'center' 
-        #     y += +0.4
-        # elif row['sigla'] == "PE":
-        #     ha = 'left'
-        #     x += 2.2
-        #     y += -0.1 
-        # elif row['sigla'] == "PI":
-        #     ha = 'left'
-        #     x += 0.5  
-        # else:
-        #     ha = 'center'
+    Casos_por_regiao = {regiao: 0 for regiao in regioes}
 
-        # ax.text(x, y, text, fontsize=fontsize, ha=ha, color=color)
+    for regiao, estados in regioes.items():
+        for estado in estados:
+            Casos_por_regiao[regiao] += num_ocorrencias_por_estado.get(estado, 0)
 
-    Todos_de_casos = df_nova_planilha['Todos'].sum()
+    
 
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
@@ -334,8 +330,13 @@ def conta_Caracteristicas():
     posicao_x = xlim[1]
     posicao_y = ylim[0]
 
-    texto_legenda = f"Total de casos: {Todos_de_casos}"
-    ax.text(posicao_x, posicao_y, texto_legenda, ha='right', va='bottom', fontsize=10, color='black')
+    posicao_y_regioes = posicao_y + 1
+
+    texto_total = f"Total de casos: {Total_de_casos}"
+    ax.text(posicao_x, posicao_y, texto_total, ha='right', va='bottom', fontsize=10, color='black')
+
+    texto_regioes = "\n".join([f"{regiao}: {casos}" for regiao, casos in Casos_por_regiao.items()])
+    ax.text(posicao_x, posicao_y_regioes, texto_regioes, ha='right', va='bottom', fontsize=10, color='black')
 
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
